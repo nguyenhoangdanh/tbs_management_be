@@ -47,7 +47,8 @@ export class LineService {
   }
 
   async findAll(options: { factoryId?: string; includeTeams?: boolean } = {}) {
-    const where: any = { isActive: true };
+    // const where: any = { isActive: true };
+    const where: any = {};
 
     if (options.factoryId) {
       where.factoryId = options.factoryId;

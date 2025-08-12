@@ -49,7 +49,7 @@ export class FactoryService {
 
   async findAll(options: { includeLines?: boolean } = {}) {
     return this.prisma.factory.findMany({
-      where: { isActive: true },
+      // where: { isActive: true },
       include: {
         office: {
           select: { id: true, name: true, type: true },

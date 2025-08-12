@@ -203,4 +203,32 @@ export class UsersController {
   async deleteAvatar(@GetUser() user: any) {
     return this.usersService.deleteAvatar(user.id);
   }
+
+  @Get('search-by-employee-code/:employeeCode')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Search user by employee code for adding to group' })
+  @ApiResponse({ status: 200, description: 'User found successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async searchByEmployeeCode(@Param('employeeCode') employeeCode: string) {
+    return this.usersService.searchByEmployeeCode(employeeCode);
+  }
+
+  @Get('group-members/:groupId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Get current members of a group' })
+  @ApiResponse({ status: 200, description: 'Group members retrieved successfully' })
+  async getGroupMembers(@Param('groupId') groupId: string) {
+    return this.usersService.getGroupMembers(groupId);
+  }
+
+  @Get('available-leaders/:groupId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Get available users who can be group leaders' })
+  @ApiResponse({ status: 200, description: 'Available leaders retrieved successfully' })
+  async getAvailableLeaders(@Param('groupId') groupId: string) {
+    return this.usersService.getAvailableLeaders(groupId);
+  }
 }

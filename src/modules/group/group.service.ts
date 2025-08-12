@@ -69,7 +69,8 @@ export class GroupService {
   }
 
   async findAll(options: { teamId?: string; includeMembers?: boolean } = {}) {
-    const where: any = { isActive: true };
+    // const where: any = { isActive: true };
+    const where: any = { };
 
     if (options.teamId) {
       where.teamId = options.teamId;
@@ -80,13 +81,21 @@ export class GroupService {
       include: {
         team: {
           select: {
+            id: true,
             name: true,
             code: true,
             line: {
               select: {
+                id: true,
                 name: true,
                 code: true,
-                factory: { select: { name: true, code: true } }
+                factory: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true
+                  }
+                }
               }
             }
           }

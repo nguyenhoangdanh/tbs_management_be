@@ -52,7 +52,8 @@ export class TeamService {
   }
 
   async findAll(options: { lineId?: string; includeGroups?: boolean } = {}) {
-    const where: any = { isActive: true };
+    // const where: any = { isActive: true };
+    const where: any = { };
 
     if (options.lineId) {
       where.lineId = options.lineId;
@@ -63,9 +64,10 @@ export class TeamService {
       include: {
         line: {
           select: {
+            id: true,
             name: true,
             code: true,
-            factory: { select: { name: true, code: true } }
+            factory: { select: { id: true, name: true, code: true } }
           }
         },
         groups: options.includeGroups ? {

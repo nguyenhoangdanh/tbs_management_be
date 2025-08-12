@@ -530,4 +530,181 @@ export class UsersService {
       throw new InternalServerErrorException('Failed to delete avatar');
     }
   }
+
+  async searchByEmployeeCode(employeeCode: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { 
+        employeeCode,
+        isActive: true,
+        role: Role.USER  || Role.WORKER
+      },
+      include: {
+        office: true,
+        jobPosition: {
+          include: {
+            position: true,
+            department: {
+              include: {
+                office: true,
+              },
+            },
+          },
+        },
+        // ✅ FIX: Use correct relation name from schema
+        group: {
+          include: {
+            team: {
+              include: {
+                line: {
+                  include: {
+                    factory: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        // ✅ FIX: Use correct relation name from schema  
+        ledGroups: {
+          include: {
+            team: {
+              include: {
+                line: {
+                  include: {
+                    factory: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with employee code ${employeeCode} not found or not eligible`);
+    }
+
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async getGroupMembers(groupId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        leader: {
+          include: {
+            office: true,
+            jobPosition: {
+              include: {
+                position: true,
+                department: true,
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            office: true,
+            jobPosition: {
+              include: {
+                position: true,
+                department: true,
+              },
+            },
+          },
+          orderBy: [
+            { lastName: 'asc' },
+            { firstName: 'asc' }
+          ]
+        }
+      }
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // Filter out password from all members
+    const membersWithoutPassword = group.members.map(member => {
+      const { password, ...memberWithoutPassword } = member;
+      return memberWithoutPassword;
+    });
+
+    let leaderWithoutPassword = null;
+    if (group.leader) {
+      const { password, ...leader } = group.leader;
+      leaderWithoutPassword = leader;
+    }
+
+    return {
+      group: {
+        id: group.id,
+        name: group.name,
+        code: group.code,
+      },
+      leader: leaderWithoutPassword,
+      members: membersWithoutPassword,
+      totalMembers: group.members.length
+    };
+  }
+
+  async getAvailableLeaders(groupId: string) {
+    // Get current group members (they are eligible to be leaders)
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        members: {
+          where: {
+            role: Role.USER,
+            isActive: true
+          },
+          include: {
+            office: true,
+            jobPosition: {
+              include: {
+                position: true,
+                department: true,
+              },
+            },
+          },
+          orderBy: [
+            { lastName: 'asc' },
+            { firstName: 'asc' }
+          ]
+        },
+        leader: true
+      }
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // Filter out password from all members and add current leader status
+    const availableLeaders = group.members.map(member => {
+      const { password, ...memberWithoutPassword } = member;
+      return {
+        ...memberWithoutPassword,
+        isCurrentLeader: group.leaderId === member.id
+      };
+    });
+
+    return {
+      group: {
+        id: group.id,
+        name: group.name,
+        code: group.code,
+      },
+      currentLeader: group.leader ? {
+        id: group.leader.id,
+        employeeCode: group.leader.employeeCode,
+        firstName: group.leader.firstName,
+        lastName: group.leader.lastName,
+      } : null,
+      availableLeaders,
+      totalAvailable: availableLeaders.length
+    };
+  }
 }

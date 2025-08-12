@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Put,
+  Patch,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -26,6 +27,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
 import { CreateProductProcessDto } from './dto/create-product-process.dto';
+import { UpdateProductProcessDto } from './dto/update-product-process.dto';
 
 @ApiTags('manufacturing')
 @ApiBearerAuth('JWT-auth')
@@ -149,15 +151,44 @@ export class ManufacturingController {
     return this.manufacturingService.getProductProcess(productId, processId);
   }
 
+  // ✅ NEW: Update product-process endpoint
+  @Patch('products/:productId/processes/:processId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPERADMIN, Role.ADMIN)
+  @ApiOperation({ summary: 'Update product-process relationship' })
+  @ApiResponse({ status: 200, description: 'Product-process updated successfully' })
+  updateProductProcess(
+    @Param('productId') productId: string,
+    @Param('processId') processId: string,
+    @Body() updateProductProcessDto: UpdateProductProcessDto
+  ) {
+    return this.manufacturingService.updateProductProcess(productId, processId, updateProductProcessDto);
+  }
+
+  // ✅ NEW: Get sequence information for a product
+  @Get('products/:productId/sequences')
+  @ApiOperation({ summary: 'Get sequence validation info for a product' })
+  @ApiResponse({ status: 200, description: 'Sequence info retrieved successfully' })
+  getProductSequenceInfo(@Param('productId') productId: string) {
+    return this.manufacturingService.getProductSequenceInfo(productId);
+  }
+
   @Delete('products/:productId/processes/:processId')
   @UseGuards(RolesGuard)
   @Roles(Role.SUPERADMIN, Role.ADMIN)
   @ApiOperation({ summary: 'Remove process from product' })
+  @ApiQuery({ 
+    name: 'reorderSequences', 
+    required: false, 
+    type: Boolean,
+    description: 'Whether to reorder remaining sequences to fill gaps' 
+  })
   @ApiResponse({ status: 200, description: 'Process removed from product successfully' })
   removeProcessFromProduct(
     @Param('productId') productId: string,
-    @Param('processId') processId: string
+    @Param('processId') processId: string,
+    @Query('reorderSequences') reorderSequences?: boolean
   ) {
-    return this.manufacturingService.removeProcessFromProduct(productId, processId);
+    return this.manufacturingService.removeProcessFromProduct(productId, processId, reorderSequences);
   }
 }

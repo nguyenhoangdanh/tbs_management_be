@@ -19,11 +19,11 @@ export class CreateProductProcessDto {
 
   @ApiProperty({
     example: 1,
-    description: 'Sequence number in production flow',
+    description: 'Sequence number in production flow (must be unique within product, auto-assigned if not provided)',
     required: false,
   })
   @IsInt()
-  @Min(0)
+  @Min(1)
   @IsOptional()
   sequence?: number;
 }

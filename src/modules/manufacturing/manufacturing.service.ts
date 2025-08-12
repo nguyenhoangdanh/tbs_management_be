@@ -9,6 +9,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
 import { CreateProductProcessDto } from './dto/create-product-process.dto';
+import { UpdateProductProcessDto } from './dto/update-product-process.dto';
 
 @Injectable()
 export class ManufacturingService {
@@ -279,7 +280,7 @@ export class ManufacturingService {
 
   // Product-Process relationship methods
   async addProcessToProduct(productId: string, createProductProcessDto: CreateProductProcessDto) {
-    const { processId } = createProductProcessDto;
+    const { processId, sequence } = createProductProcessDto;
 
     // Validate product exists
     const product = await this.prisma.product.findUnique({
@@ -313,10 +314,46 @@ export class ManufacturingService {
       throw new ConflictException('Process already added to this product');
     }
 
+    // Handle sequence assignment and validation
+    let finalSequence = sequence;
+    
+    if (finalSequence) {
+      // Check if sequence is already taken by another process in this product
+      const conflictingProcess = await this.prisma.productProcess.findFirst({
+        where: {
+          productId,
+          sequence: finalSequence,
+          isActive: true, // Only check active processes for sequence conflicts
+        },
+        include: {
+          process: { select: { name: true, code: true } },
+        },
+      });
+
+      if (conflictingProcess) {
+        throw new ConflictException(
+          `Sequence ${finalSequence} is already occupied by process "${conflictingProcess.process.name}" (${conflictingProcess.process.code}). Please choose a different sequence number.`
+        );
+      }
+    } else {
+      // Auto-assign next available sequence
+      const maxSequence = await this.prisma.productProcess.aggregate({
+        where: { 
+          productId,
+          isActive: true 
+        },
+        _max: { sequence: true },
+      });
+      
+      finalSequence = (maxSequence._max.sequence || 0) + 1;
+    }
+
     return this.prisma.productProcess.create({
       data: {
         productId,
-        ...createProductProcessDto,
+        processId,
+        standardOutputPerHour: createProductProcessDto.standardOutputPerHour,
+        sequence: finalSequence,
       },
       include: {
         product: {
@@ -371,7 +408,78 @@ export class ManufacturingService {
     return productProcess;
   }
 
-  async removeProcessFromProduct(productId: string, processId: string) {
+  // ✅ NEW: Update product-process method
+  async updateProductProcess(productId: string, processId: string, updateProductProcessDto: UpdateProductProcessDto) {
+    // Validate that the relationship exists
+    const existingRelation = await this.prisma.productProcess.findUnique({
+      where: {
+        productId_processId: {
+          productId,
+          processId,
+        },
+      },
+      include: {
+        product: true,
+        process: true,
+      },
+    });
+
+    if (!existingRelation) {
+      throw new NotFoundException('Product-process combination not found');
+    }
+
+    // If updating sequence, check for conflicts
+    if (updateProductProcessDto.sequence !== undefined && updateProductProcessDto.sequence !== existingRelation.sequence) {
+      const conflictingRelation = await this.prisma.productProcess.findFirst({
+        where: {
+          productId,
+          sequence: updateProductProcessDto.sequence,
+          isActive: true, // Only check active processes
+          id: {
+            not: existingRelation.id, // Exclude current relation
+          },
+        },
+        include: {
+          process: { select: { name: true, code: true } },
+        },
+      });
+
+      if (conflictingRelation) {
+        throw new ConflictException(
+          `Sequence ${updateProductProcessDto.sequence} is already occupied by process "${conflictingRelation.process.name}" (${conflictingRelation.process.code}). Please choose a different sequence number.`
+        );
+      }
+
+      // Validate sequence is positive
+      if (updateProductProcessDto.sequence < 1) {
+        throw new ConflictException('Sequence must be greater than 0');
+      }
+    }
+
+    // If setting isActive to false, allow sequence conflicts (inactive processes don't block sequences)
+    const updatedData = { ...updateProductProcessDto };
+
+    return this.prisma.productProcess.update({
+      where: {
+        productId_processId: {
+          productId,
+          processId,
+        },
+      },
+      data: updatedData,
+      include: {
+        product: {
+          select: { id: true, name: true, code: true },
+        },
+        process: {
+          select: { id: true, name: true, code: true, description: true },
+        },
+      },
+    });
+  }
+
+  // ✅ ENHANCED: Remove process with sequence reordering option
+  async removeProcessFromProduct(productId: string, processId: string, reorderSequences: boolean = false) {
     const productProcess = await this.prisma.productProcess.findUnique({
       where: {
         productId_processId: {
@@ -385,7 +493,10 @@ export class ManufacturingService {
       throw new NotFoundException('Product-process combination not found');
     }
 
-    return this.prisma.productProcess.delete({
+    const deletedSequence = productProcess.sequence;
+
+    // Delete the product-process relationship
+    await this.prisma.productProcess.delete({
       where: {
         productId_processId: {
           productId,
@@ -393,5 +504,64 @@ export class ManufacturingService {
         },
       },
     });
+
+    // Optional: Reorder remaining sequences to fill gaps
+    if (reorderSequences) {
+      const remainingProcesses = await this.prisma.productProcess.findMany({
+        where: {
+          productId,
+          sequence: { gt: deletedSequence },
+          isActive: true,
+        },
+        orderBy: { sequence: 'asc' },
+      });
+
+      // Update sequences to fill the gap
+      for (const process of remainingProcesses) {
+        await this.prisma.productProcess.update({
+          where: { id: process.id },
+          data: { sequence: process.sequence - 1 },
+        });
+      }
+    }
+
+    return { success: true, message: 'Process removed from product successfully' };
+  }
+
+  // ✅ NEW: Get sequence validation info for a product
+  async getProductSequenceInfo(productId: string) {
+    const processes = await this.prisma.productProcess.findMany({
+      where: { 
+        productId,
+        isActive: true 
+      },
+      include: {
+        process: { select: { name: true, code: true } },
+      },
+      orderBy: { sequence: 'asc' },
+    });
+
+    const occupiedSequences = processes.map(pp => pp.sequence);
+    const maxSequence = Math.max(...occupiedSequences, 0);
+    const availableSequences = [];
+    
+    // Find gaps in sequence
+    for (let i = 1; i <= maxSequence + 5; i++) {
+      if (!occupiedSequences.includes(i)) {
+        availableSequences.push(i);
+      }
+    }
+
+    return {
+      totalProcesses: processes.length,
+      occupiedSequences: processes.map(pp => ({
+        sequence: pp.sequence,
+        processName: pp.process.name,
+        processCode: pp.process.code,
+      })),
+      nextAvailableSequence: Math.max(...occupiedSequences, 0) + 1,
+      availableSequences: availableSequences.slice(0, 10), // Limit to first 10 available
+      maxSequence,
+    };
   }
 }
