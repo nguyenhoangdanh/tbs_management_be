@@ -5,7 +5,7 @@ const prisma = new PrismaClient({
   log: ['error', 'warn', 'info']
 });
 
-// Sample products data
+// Sample products data (10 túi xách mẫu)
 const SAMPLE_PRODUCTS = [
   {
     name: 'Túi xách văn phòng A1',
@@ -36,10 +36,40 @@ const SAMPLE_PRODUCTS = [
     code: 'TUI-E5',
     description: 'Túi xách công sở nam màu xanh đen', 
     imageUrl: 'https://example.com/images/tui-e5.jpg'
+  },
+  {
+    name: 'Túi xách thể thao F6',
+    code: 'TUI-F6',
+    description: 'Túi xách thể thao chống nước màu xanh',
+    imageUrl: 'https://example.com/images/tui-f6.jpg'
+  },
+  {
+    name: 'Túi xách cao cấp G7',
+    code: 'TUI-G7',
+    description: 'Túi xách da thật cao cấp màu vàng',
+    imageUrl: 'https://example.com/images/tui-g7.jpg'
+  },
+  {
+    name: 'Túi xách mini H8',
+    code: 'TUI-H8',
+    description: 'Túi xách mini thời trang màu hồng',
+    imageUrl: 'https://example.com/images/tui-h8.jpg'
+  },
+  {
+    name: 'Túi xách laptop I9',
+    code: 'TUI-I9',
+    description: 'Túi xách đựng laptop văn phòng màu xám',
+    imageUrl: 'https://example.com/images/tui-i9.jpg'
+  },
+  {
+    name: 'Túi xách evening J10',
+    code: 'TUI-J10',
+    description: 'Túi xách dạ tiệc sang trọng màu bạc',
+    imageUrl: 'https://example.com/images/tui-j10.jpg'
   }
 ];
 
-// Sample processes data
+// Sample processes data (15 công đoạn cơ bản)
 const SAMPLE_PROCESSES = [
   {
     name: 'Cắt chặt vải',
@@ -80,6 +110,41 @@ const SAMPLE_PROCESSES = [
     name: 'Hoàn thiện',
     code: 'CD-08',
     description: 'Hoàn thiện và kiểm tra chất lượng'
+  },
+  {
+    name: 'Sơn quai',
+    code: 'CD-09',
+    description: 'Sơn và trang trí quai túi xách'
+  },
+  {
+    name: 'Đóng gói',
+    code: 'CD-10',
+    description: 'Đóng gói sản phẩm hoàn thiện'
+  },
+  {
+    name: 'Kiểm tra chất lượng',
+    code: 'CD-11',
+    description: 'Kiểm tra chất lượng chi tiết từng sản phẩm'
+  },
+  {
+    name: 'Gắn logo thương hiệu',
+    code: 'CD-12',
+    description: 'Gắn logo và nhãn mác thương hiệu'
+  },
+  {
+    name: 'Lót túi bằng vải',
+    code: 'CD-13',
+    description: 'Lót túi bằng vải mềm bên trong'
+  },
+  {
+    name: 'Gia công chi tiết',
+    code: 'CD-14',
+    description: 'Gia công các chi tiết nhỏ và phụ kiện'
+  },
+  {
+    name: 'Kiểm tra cuối cùng',
+    code: 'CD-15',
+    description: 'Kiểm tra cuối cùng trước khi xuất kho'
   }
 ];
 
@@ -517,30 +582,43 @@ async function createSampleData() {
     let mappingCount = 0;
     
     for (const product of products) {
-      // Each product has 4-6 processes
-      const processCount = Math.floor(Math.random() * 3) + 4; // 4-6 processes
+      // Each product has 6-10 processes in realistic sequence
+      const processCount = Math.floor(Math.random() * 5) + 6; // 6-10 processes
       const selectedProcesses = processes.slice(0, processCount);
       
       for (let index = 0; index < selectedProcesses.length; index++) {
         const process = selectedProcesses[index];
         
-        // Generate realistic output per hour
+        // Generate realistic output per hour based on process complexity
         let standardOutput;
         switch (process.code) {
-          case 'CD-01': // Cắt chặt
-          case 'CD-02': // Lạng vải
-            standardOutput = Math.floor(Math.random() * 20) + 40; // 40-60
+          case 'CD-01': // Cắt chặt vải - Quick process
+          case 'CD-02': // Lạng vải - Quick process  
+          case 'CD-10': // Đóng gói - Quick process
+            standardOutput = Math.floor(Math.random() * 20) + 50; // 50-70 pieces/hour
             break;
-          case 'CD-03': // Ép định hình
-          case 'CD-04': // May lót
-            standardOutput = Math.floor(Math.random() * 15) + 25; // 25-40
+          case 'CD-03': // Ép định hình - Medium complexity
+          case 'CD-04': // May lót - Medium complexity
+          case 'CD-09': // Sơn quai - Medium complexity
+          case 'CD-13': // Lót túi - Medium complexity
+            standardOutput = Math.floor(Math.random() * 15) + 30; // 30-45 pieces/hour
             break;
-          case 'CD-05': // May thân túi
-          case 'CD-07': // May quai
-            standardOutput = Math.floor(Math.random() * 10) + 15; // 15-25
+          case 'CD-05': // May thân túi - Complex process
+          case 'CD-07': // May quai - Complex process
+          case 'CD-14': // Gia công chi tiết - Complex process
+            standardOutput = Math.floor(Math.random() * 10) + 15; // 15-25 pieces/hour
+            break;
+          case 'CD-06': // Gắn khóa kéo - Precision work
+          case 'CD-12': // Gắn logo - Precision work
+            standardOutput = Math.floor(Math.random() * 15) + 25; // 25-40 pieces/hour
+            break;
+          case 'CD-08': // Hoàn thiện - Quality control
+          case 'CD-11': // Kiểm tra chất lượng - Quality control
+          case 'CD-15': // Kiểm tra cuối cùng - Quality control
+            standardOutput = Math.floor(Math.random() * 20) + 35; // 35-55 pieces/hour
             break;
           default:
-            standardOutput = Math.floor(Math.random() * 20) + 20; // 20-40
+            standardOutput = Math.floor(Math.random() * 20) + 25; // 25-45 pieces/hour
         }
         
         await prisma.productProcess.upsert({
@@ -563,7 +641,7 @@ async function createSampleData() {
         });
         
         mappingCount++;
-        console.log(`   ✅ ${product.code} - ${process.code} (${standardOutput}/h)`);
+        console.log(`   ✅ ${product.code} - ${process.code} (${standardOutput}/h) - Sequence ${index + 1}`);
       }
     }
 

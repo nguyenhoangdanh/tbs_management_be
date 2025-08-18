@@ -46,7 +46,8 @@
     "db:backup:prod": "dotenv -e .env.production -- pg_dump $DATABASE_URL > backup_prod_$(date +%Y%m%d_%H%M%S).sql",
     "db:restore:local": "dotenv -e .env.local -- psql $DATABASE_URL < ",
     "db:restore:prod": "dotenv -e .env.production -- psql $DATABASE_URL < ",
-    "test:worksheet-api": "dotenv -e .env.local -- npx tsx scripts/test-worksheet-api.ts"
+    "test:worksheet-api": "dotenv -e .env.local -- npx tsx scripts/test-worksheet-api.ts",
+    "validate:sample-data": "npx tsx scripts/validate-sample-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
